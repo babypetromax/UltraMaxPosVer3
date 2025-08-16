@@ -35,11 +35,18 @@ export const printService = (elementId: string, command?: string, receiptWidth: 
         return;
     }
 
-    // This dedicated stylesheet is the key fix. It uses simple, print-friendly CSS 
-    // that thermal printers can reliably interpret, ignoring the complex app styles.
+    // --- KEY FIXES APPLIED HERE ---
+    // 1. Added `html, body { margin: 0 !important; padding: 0 !important; }` to remove browser default margins, fixing the large gap at the end.
+    // 2. Reduced `line-height`, margins, and paddings everywhere to make the receipt compact.
+    // 3. Added `image-rendering` properties to logos/promos to ensure they print sharp and not blurry.
+    // 4. Added `-webkit-font-smoothing: none;` to make text rendering crisper on thermal printers.
     const printStyles = `
         @page {
-            margin: 0;
+            margin: 0 !important; /* Force no margins */
+        }
+        html, body {
+            margin: 0 !important; /* Override browser defaults */
+            padding: 0 !important; /* Override browser defaults */
         }
         * {
             margin: 0;
@@ -52,6 +59,7 @@ export const printService = (elementId: string, command?: string, receiptWidth: 
         body {
             font-family: 'Courier New', 'Consolas', monospace;
             background: #fff !important;
+            -webkit-font-smoothing: none; /* Sharpen text rendering */
         }
         #printable-receipt {
             width: ${receiptWidth};
@@ -65,15 +73,15 @@ export const printService = (elementId: string, command?: string, receiptWidth: 
         }
         p, span, div, td, th {
             font-size: 9pt;
-            line-height: 1.3;
+            line-height: 1.15; /* Tighten line spacing */
         }
         .receipt-header-content p, .receipt-info, .receipt-footer p {
             font-size: 8pt;
         }
-        .receipt-header-content { text-align: center; margin-bottom: 4px; }
-        .receipt-footer { text-align: center; margin-top: 4px; }
+        .receipt-header-content { text-align: center; margin-bottom: 3px; } /* Reduce margin */
+        .receipt-footer { text-align: center; margin-top: 3px; } /* Reduce margin */
         .receipt-info { display: flex; justify-content: space-between; font-size: 8pt; }
-        .receipt-hr { border: none; border-top: 1px dashed black; margin: 4px 0; }
+        .receipt-hr { border: none; border-top: 1px dashed black; margin: 2px 0; } /* Reduce margin */
         
         table.receipt-items-table, table.receipt-summary-table {
             width: 100%;
@@ -82,13 +90,13 @@ export const printService = (elementId: string, command?: string, receiptWidth: 
         }
         .receipt-items-table th, .receipt-items-table td,
         .receipt-summary-table td {
-            padding: 2px 0;
+            padding: 1px 0; /* Tighten padding */
             vertical-align: top;
         }
         .receipt-items-table th { 
             text-align: left; 
             border-bottom: 1px solid black; 
-            padding-bottom: 3px;
+            padding-bottom: 2px; /* Reduce padding */
         }
         .receipt-items-table td { text-align: left; }
         .receipt-items-table .col-qty { text-align: right; padding: 0 4px; }
@@ -101,8 +109,12 @@ export const printService = (elementId: string, command?: string, receiptWidth: 
         .receipt-logo, .receipt-promo {
             max-width: 100%;
             height: auto;
-            margin: 4px auto;
+            margin: 3px auto; /* Reduce margin */
             display: block;
+            /* Sharpen image rendering for thermal printers */
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
         }
         .cash-drawer-kick-command {
             display: block;
