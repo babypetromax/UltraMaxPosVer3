@@ -1,0 +1,8 @@
+{
+  "short_name": "UltraMax POS",
+  "name": "UltraMax Point of Sale",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#4f46e5",
+  "background_color": "#111827"
+}

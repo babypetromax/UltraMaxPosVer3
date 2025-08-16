@@ -1,0 +1,10 @@
+export const GOOGLE_SHEET_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwhTkBDPjOkXxgIUWJtDXzqhpwjETbn6n4T5I-s84t5tY6IFowgN8d5eIpW5S8xGlOz8A/exec';
+export const DAILY_DATA_KEY_PREFIX = 'takoyaki_pos_daily_data_';
+export const LOCAL_STORAGE_FAVORITES_KEY = 'takoyaki_pos_favorite_ids';
+export const LOCAL_STORAGE_SHOP_SETTINGS_KEY = 'takoyaki_pos_shop_settings';
+export const LOCAL_STORAGE_SHIFT_HISTORY_KEY = 'takoyaki_pos_shift_history';
+export const LOCAL_STORAGE_MENU_CACHE_KEY = 'takoyaki_pos_menu_cache';
+export const SYNC_INTERVAL = 60000;
+export const MENU_CACHE_TTL = 4 * 60 * 60 * 1000;
+export const MAX_SHIFTS_PER_DAY = 4;
+export const TAX_RATE = 0.07;
