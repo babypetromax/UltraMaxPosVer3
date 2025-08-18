@@ -22,6 +22,7 @@
     --success-color: #059669;
     --success-hover: #047857;
     --warning-color: #f59e0b;
+    --info-color: #3b82f6;
     --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     --card-shadow-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --font-family: 'Sarabun', 'Inter', sans-serif;
@@ -46,6 +47,7 @@ body.dark {
     --success-color: #22c55e;
     --success-hover: #16a34a;
     --warning-color: #facc15;
+    --info-color: #60a5fa;
     --card-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.15);
     --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.2), 0 4px 6px -2px rgb(0 0 0 / 0.1);
     --order-panel-bg: #1e293b;
@@ -910,16 +912,6 @@ body.dark .ai-analysis-section { background: linear-gradient(135deg, #1e3a8a, #3
 .confirm-payment-btn:disabled { background-color: #9ca3af; }
 .modal-footer { margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem; flex-shrink: 0; }
 
-/* POS View Overlay for mobile */
-.pos-view-overlay {
-    position: fixed; top: 3.75rem;
-    left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.4);
-    z-index: 499;
-    opacity: 0; visibility: hidden;
-    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-}
-.pos-view-overlay.is-visible { opacity: 1; visibility: visible; }
-
 /* --- RECEIPT MODAL --- */
 .receipt-modal-overlay { z-index: 1001; }
 .receipt-modal-content {
@@ -1333,20 +1325,58 @@ body.dark .status-badge.status-ready { color: var(--secondary-color); }
 /* KDS Daily Total Footer */
 .kds-summary-footer {
     flex-shrink: 0;
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1.5rem;
     border-top: 1px solid var(--border-color);
     background-color: var(--surface-color);
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     align-items: center;
-    font-size: 1.125rem;
-    font-weight: 600;
+    gap: 1.5rem;
 }
-.footer-total {
-    font-size: 1.5rem;
+.footer-item {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+}
+.footer-item > span:first-child {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.footer-item .footer-total {
+    font-size: 1.75rem;
     font-weight: 700;
-    color: var(--success-color);
 }
+.footer-item.gross-sales { background-color: rgba(59, 130, 246, 0.1); }
+.footer-item.gross-sales .footer-total { color: var(--info-color); }
+
+.footer-item.cancellations { background-color: rgba(239, 68, 68, 0.1); }
+.footer-item.cancellations .footer-total { color: var(--danger-color); }
+
+.cancellation-badge {
+    background-color: var(--danger-color);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    border-radius: 50%;
+    width: 1.25rem;
+    height: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.footer-item.net-sales { background-color: rgba(5, 150, 105, 0.1); }
+.footer-item.net-sales .footer-total { color: var(--success-color); }
+
 
 /* Styles for Expandable Rows */
 .expandable-row {
@@ -1575,6 +1605,9 @@ body.dark .kds-completed-table tr.reversal-bill td {
     display: flex;
     justify-content: space-between;
 }
+.summary-item.cancellation-summary span:last-child {
+    color: var(--danger-color);
+}
 .summary-item span:last-child {
     font-weight: 600;
 }
@@ -1642,6 +1675,9 @@ body.dark .kds-completed-table tr.reversal-bill td {
     padding-top: .5rem;
     border-top: 1px solid var(--border-color);
     font-weight: 600;
+}
+.shift-history-card .card-body .cancellation-summary span:last-child {
+    color: var(--danger-color);
 }
 
 

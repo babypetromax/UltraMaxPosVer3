@@ -1,12 +1,12 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { 
-    MenuItem, MenuCache, Order, KitchenOrder, LogEntry, ShopSettings, 
-    CashDrawerActivity, Shift, DailyData, CartItem 
+import {
+    MenuItem, MenuCache, Order, KitchenOrder, LogEntry, ShopSettings,
+    CashDrawerActivity, Shift, DailyData, CartItem
 } from '../types';
-import { 
-    GOOGLE_SHEET_WEB_APP_URL, DAILY_DATA_KEY_PREFIX, LOCAL_STORAGE_FAVORITES_KEY, 
-    LOCAL_STORAGE_SHOP_SETTINGS_KEY, LOCAL_STORAGE_SHIFT_HISTORY_KEY, 
+import {
+    GOOGLE_SHEET_WEB_APP_URL, DAILY_DATA_KEY_PREFIX, LOCAL_STORAGE_FAVORITES_KEY,
+    LOCAL_STORAGE_SHOP_SETTINGS_KEY, LOCAL_STORAGE_SHIFT_HISTORY_KEY,
     LOCAL_STORAGE_MENU_CACHE_KEY, SYNC_INTERVAL, MENU_CACHE_TTL
 } from '../constants';
 import { getYYYYMMDD } from '../helpers';
@@ -51,6 +51,12 @@ interface DataContextType {
     navCategories: string[];
     filteredMenuItems: MenuItem[];
     shiftSummaryData: any; // Consider creating a specific type for this
+    dailySummaryData: {
+        grossSales: number;
+        netSales: number;
+        cancellationsTotal: number;
+        cancellationsCount: number;
+    };
     // For keyboard navigation
     categoryItemRefs: React.MutableRefObject<Map<string, HTMLLIElement>>;
     menuItemRefs: React.MutableRefObject<Map<number, HTMLDivElement>>;
@@ -185,7 +191,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         } else {
             console.warn("API_KEY environment variable not set. AI features will be disabled.");
-            // We show the notification only once when the app loads to avoid spamming the user.
         }
 
         // --- Initial data load ---
@@ -253,7 +258,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     
-    // Show AI notification only once after initial load completes
     useEffect(() => {
         if(isInitialLoadComplete && !process.env.API_KEY) {
             showNotification('ไม่ได้ตั้งค่า Gemini API Key ฟีเจอร์ AI จะถูกปิดใช้งาน', 'warning');
@@ -320,7 +324,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
     }, [logAction, dailyData]);
 
-    // Background Sync
     useEffect(() => {
         if (isInitialLoadComplete && dailyData) {
             syncOrders();
@@ -329,12 +332,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [isInitialLoadComplete, syncOrders, dailyData]);
 
-    // LocalStorage persistance
     useEffect(() => { if (isInitialLoadComplete) localStorage.setItem(LOCAL_STORAGE_FAVORITES_KEY, JSON.stringify(Array.from(favoriteIds))); }, [favoriteIds, isInitialLoadComplete]);
     useEffect(() => { if (isInitialLoadComplete) localStorage.setItem(LOCAL_STORAGE_SHOP_SETTINGS_KEY, JSON.stringify(shopSettings)); }, [shopSettings, isInitialLoadComplete]);
     useEffect(() => { if (isInitialLoadComplete) localStorage.setItem(LOCAL_STORAGE_SHIFT_HISTORY_KEY, JSON.stringify(shiftHistory)); }, [shiftHistory, isInitialLoadComplete]);
     
-    // Memoized derived data
     const navCategories = useMemo(() => ['รายการโปรด', ...categories], [categories]);
     
     const filteredMenuItems = useMemo(() => {
@@ -349,15 +350,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return menuItems.filter(item => item.category === activeCategory);
     }, [menuItems, activeCategory, favoriteIds, searchQuery, focusedItem, setFocusedItem]);
     
+    const dailySummaryData = useMemo(() => {
+        const summary = { grossSales: 0, netSales: 0, cancellationsTotal: 0, cancellationsCount: 0 };
+        if (!dailyData) return summary;
+
+        const todaysOrders = dailyData.completedOrders;
+
+        for (const order of todaysOrders) {
+            if (order.status === 'cancelled') {
+                summary.cancellationsTotal += order.total;
+                summary.cancellationsCount += 1;
+            } else {
+                summary.netSales += order.total;
+            }
+        }
+        summary.grossSales = summary.netSales + summary.cancellationsTotal;
+
+        return summary;
+    }, [dailyData]);
+
     const shiftSummaryData = useMemo(() => {
         if (!dailyData?.currentShift) return null;
     
         const summary = {
             totalSales: 0, totalCashSales: 0, totalQrSales: 0,
             totalPaidIn: 0, totalPaidOut: 0,
+            totalCancellationsValue: 0, totalCancellationsCount: 0,
             expectedCashInDrawer: dailyData.currentShift.openingFloatAmount,
         };
     
+        const shiftOrderIds = new Set(dailyData.currentShift.activities.filter(a => a.type === 'SALE').map(a => a.orderId));
+        const shiftRefundOrderIds = new Set(dailyData.currentShift.activities.filter(a => a.type === 'REFUND').map(a => a.orderId));
+        const cancelledOrdersInShift = dailyData.completedOrders.filter(o => o.status === 'cancelled' && shiftRefundOrderIds.has(o.id));
+
+        summary.totalCancellationsValue = cancelledOrdersInShift.reduce((sum, o) => sum + o.total, 0);
+        summary.totalCancellationsCount = cancelledOrdersInShift.length;
+
         for (const act of dailyData.currentShift.activities) {
             switch (act.type) {
                 case 'SALE':
@@ -378,8 +406,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return summary;
     }, [dailyData]);
 
-
-    // Data Handlers
     const toggleFavorite = (itemId: number) => {
         setFavoriteIds(prev => {
             const newFavs = new Set(prev);
@@ -554,7 +580,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 id: `act-${Date.now()}`, timestamp: new Date(),
                 type: 'SHIFT_END', amount: counted,
                 paymentMethod: 'cash', description: 'ปิดยอด สรุปเงินสดในลิ้นชัก'
-            }]
+            }],
+            ...{ totalCancellationsValue: summary.totalCancellationsValue, totalCancellationsCount: summary.totalCancellationsCount }
         };
 
         setShiftHistory(prev => [closedShift, ...prev]);
@@ -568,7 +595,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
     };
 
-    // Admin Menu Functions
     const syncMenuChange = async (action: string, payload: object) => {
         if (!GOOGLE_SHEET_WEB_APP_URL || !GOOGLE_SHEET_WEB_APP_URL.startsWith('https://script.google.com/macros/s/')) {
             const errorMsg = 'Google Sheet URL ไม่ได้ตั้งค่า การเปลี่ยนแปลงจะถูกบันทึกแค่ในเครื่องเท่านั้น';
@@ -679,7 +705,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     if (!dailyData) {
-        return null; // Return null or a loader while dailyData is being set up
+        return null; 
     }
 
     const value: DataContextType = {
@@ -697,7 +723,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleUpdateOrderStatus, handleCompleteOrder, handleCancelBill,
         handleStartShift, handlePaidInOut, handleManualDrawerOpen, handleEndShift,
         handleSaveMenuItem, handleDeleteItem, handleAddCategory, handleDeleteCategory,
-        generateNewDailyId, navCategories, filteredMenuItems, shiftSummaryData,
+        generateNewDailyId, navCategories, filteredMenuItems, shiftSummaryData, dailySummaryData,
         categoryItemRefs, menuItemRefs, menuGridRef, getCategoryItemRef, getMenuItemRef
     };
 

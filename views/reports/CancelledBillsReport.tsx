@@ -9,9 +9,21 @@ interface CancelledBillsReportProps {
 const CancelledBillsReport: React.FC<CancelledBillsReportProps> = ({ orders }) => {
     const cancelled = useMemo(() => orders.filter(o => o.status === 'cancelled').sort((a,b) => (b.cancelledAt ? new Date(b.cancelledAt).getTime() : 0) - (a.cancelledAt ? new Date(a.cancelledAt).getTime() : 0)), [orders]);
 
+    const totalCancelledValue = useMemo(() => cancelled.reduce((sum, order) => sum + order.total, 0), [cancelled]);
+
     return (
         <div>
             <div className="report-header"><h1>รายงานการลบบิล</h1></div>
+            <div className="summary-cards">
+                <div className="summary-card">
+                    <div className="summary-card-title">ยอดรวมที่ยกเลิก</div>
+                    <div className="summary-card-value" style={{color: 'var(--danger-color)'}}>฿{formatCurrency(totalCancelledValue)}</div>
+                </div>
+                <div className="summary-card">
+                    <div className="summary-card-title">จำนวนบิลที่ยกเลิก</div>
+                    <div className="summary-card-value">{cancelled.length}</div>
+                </div>
+            </div>
             <table className="report-table">
                 <thead><tr><th>เลขที่บิล</th><th>เวลาที่สร้าง</th><th>เวลายกเลิก</th><th>ยอดรวม</th></tr></thead>
                 <tbody>
