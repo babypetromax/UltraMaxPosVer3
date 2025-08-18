@@ -2008,7 +2008,7 @@ body.light .receipt-editor-preview-area {
     );
 }
 
-/* --- Data Management Styles --- */
+/* --- Data Management Style --- */
 .tabs-container {
     display: flex;
     border-bottom: 1px solid var(--border-color);
