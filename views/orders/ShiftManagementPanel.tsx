@@ -51,10 +51,12 @@ const ShiftManagementPanel: React.FC = () => {
                     <div className="summary-item"><span>เงินเริ่มต้น</span> <span>฿{formatCurrency(currentShift.openingFloatAmount)}</span></div>
                     <div className="summary-item"><span>ยอดขายเงินสด</span> <span>฿{formatCurrency(shiftSummaryData?.totalCashSales || 0)}</span></div>
                     <div className="summary-item"><span>ยอดขาย QR</span> <span>฿{formatCurrency(shiftSummaryData?.totalQrSales || 0)}</span></div>
+                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX START --- */}
                     <div className="summary-item cancellation-summary">
                         <span>ยอดบิลยกเลิก</span> 
                         <span>-฿{formatCurrency(shiftSummaryData?.totalCancellationsValue || 0)}</span>
                     </div>
+                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX END --- */}
                     <div className="summary-item total"><span>เงินสดที่ควรมีในลิ้นชัก (คาดการณ์)</span> <span>฿{formatCurrency(shiftSummaryData?.expectedCashInDrawer || 0)}</span></div>
                 </div>
                 <div className="shift-actions">
@@ -84,7 +86,9 @@ const ShiftManagementPanel: React.FC = () => {
                                     <div><span>เงินเริ่มต้น:</span> <span>฿{formatCurrency(currentShift.openingFloatAmount)}</span></div>
                                     <div><span>ยอดขายเงินสด:</span> <span>฿{formatCurrency(shiftSummaryData?.totalCashSales || 0)}</span></div>
                                     <div><span>ยอดขาย QR:</span> <span>฿{formatCurrency(shiftSummaryData?.totalQrSales || 0)}</span></div>
+                                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX START --- */}
                                     <div className="cancellation-summary"><span>ยอดบิลยกเลิก:</span> <span>-฿{formatCurrency(shiftSummaryData?.totalCancellationsValue || 0)}</span></div>
+                                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX END --- */}
                                     <div className="total"><span>เงินสดคาดการณ์:</span> <span>฿{formatCurrency(shiftSummaryData?.expectedCashInDrawer || 0)}</span></div>
                                 </div>
                             </div>
@@ -102,7 +106,9 @@ const ShiftManagementPanel: React.FC = () => {
                                     <div><span>เงินเริ่มต้น:</span> <span>฿{formatCurrency(closedShift.openingFloatAmount)}</span></div>
                                     <div><span>ยอดขายเงินสด:</span> <span>฿{formatCurrency(closedShift.totalCashSales || 0)}</span></div>
                                     <div><span>ยอดขาย QR:</span> <span>฿{formatCurrency(closedShift.totalQrSales || 0)}</span></div>
+                                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX START --- */}
                                     <div className="cancellation-summary"><span>ยอดบิลยกเลิก:</span> <span>-฿{formatCurrency((closedShift as any).totalCancellationsValue || 0)}</span></div>
+                                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX END --- */}
                                     <div className="total"><span>เงินสดที่นับได้:</span> <span>฿{formatCurrency(closedShift.closingCashCounted || 0)}</span></div>
                                 </div>
                             </div>

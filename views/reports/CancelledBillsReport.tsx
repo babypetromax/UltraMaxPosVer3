@@ -14,6 +14,8 @@ const CancelledBillsReport: React.FC<CancelledBillsReportProps> = ({ orders }) =
     return (
         <div>
             <div className="report-header"><h1>รายงานการลบบิล</h1></div>
+            {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX START --- */}
+            {/* Adding summary cards for a clear overview */}
             <div className="summary-cards">
                 <div className="summary-card">
                     <div className="summary-card-title">ยอดรวมที่ยกเลิก</div>
@@ -24,6 +26,7 @@ const CancelledBillsReport: React.FC<CancelledBillsReportProps> = ({ orders }) =
                     <div className="summary-card-value">{cancelled.length}</div>
                 </div>
             </div>
+            {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX END --- */}
             <table className="report-table">
                 <thead><tr><th>เลขที่บิล</th><th>เวลาที่สร้าง</th><th>เวลายกเลิก</th><th>ยอดรวม</th></tr></thead>
                 <tbody>

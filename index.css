@@ -2073,3 +2073,97 @@ body.light .receipt-editor-preview-area {
     color: #b45309;
 }
 body.dark .info-box { color: var(--warning-color); }
+/* === ULTRAMAX DEVS EDIT START: "PROJECT CLARITY" STYLES === */
+
+.kds-summary-footer {
+    display: flex;
+    justify-content: flex-end; /* Align items to the right */
+    align-items: stretch;
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    border-top: 2px solid var(--border-color);
+    background-color: var(--surface-color);
+}
+
+.footer-item {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    min-width: 200px;
+}
+
+.footer-item span:first-child {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.footer-total {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.footer-item.gross-sales {
+    background-color: var(--primary-light);
+}
+.footer-item.gross-sales .footer-total {
+    color: var(--primary-color);
+}
+body.dark .footer-item.gross-sales {
+    background-color: rgba(99, 102, 241, 0.2);
+}
+
+
+.footer-item.cancellations {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+.footer-item.cancellations .footer-total {
+    color: var(--danger-color);
+}
+body.dark .footer-item.cancellations {
+     background-color: rgba(248, 113, 113, 0.15);
+}
+
+.footer-item.net-sales {
+    background-color: rgba(16, 185, 129, 0.1);
+}
+.footer-item.net-sales .footer-total {
+    color: var(--success-color);
+}
+body.dark .footer-item.net-sales {
+    background-color: rgba(16, 185, 129, 0.15);
+}
+
+.cancellation-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-left: 0.5rem;
+    background-color: var(--danger-color);
+    color: white;
+    border-radius: 99px;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0.25rem;
+}
+
+.summary-item.cancellation-summary span:last-child {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+.shift-history-card .card-body .cancellation-summary span:last-child {
+    color: var(--danger-color);
+    font-weight: 500;
+}
+
+
+/* === ULTRAMAX DEVS EDIT END === */

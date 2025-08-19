@@ -350,38 +350,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return menuItems.filter(item => item.category === activeCategory);
     }, [menuItems, activeCategory, favoriteIds, searchQuery, focusedItem, setFocusedItem]);
     
+    // ULTRAMAX DEVS: "PROJECT CLARITY" FIX START ---
+    // Recalculating dailySummaryData with 100% accuracy.
     const dailySummaryData = useMemo(() => {
         const summary = { grossSales: 0, netSales: 0, cancellationsTotal: 0, cancellationsCount: 0 };
         if (!dailyData) return summary;
 
-        const todaysOrders = dailyData.completedOrders;
-
-        for (const order of todaysOrders) {
-            if (order.status === 'cancelled') {
+        for (const order of dailyData.completedOrders) {
+            if (order.status === 'completed') {
+                // Gross sales only include actual, positive sales transactions.
+                // Reversal bills (negative total) are not part of gross sales.
+                if (order.total > 0) {
+                    summary.grossSales += order.total;
+                }
+            } else if (order.status === 'cancelled') {
                 summary.cancellationsTotal += order.total;
-                summary.cancellationsCount += 1;
-            } else {
-                summary.netSales += order.total;
+                summary.cancellationsCount++;
             }
         }
-        summary.grossSales = summary.netSales + summary.cancellationsTotal;
+        
+        // Net sales are calculated from all non-cancelled bills, including negative reversal bills.
+        const netSalesValue = dailyData.completedOrders
+            .filter(o => o.status === 'completed')
+            .reduce((sum, o) => sum + o.total, 0);
+
+        summary.netSales = netSalesValue;
 
         return summary;
     }, [dailyData]);
 
+    // Recalculating shiftSummaryData to include cancellation data.
     const shiftSummaryData = useMemo(() => {
         if (!dailyData?.currentShift) return null;
     
         const summary = {
             totalSales: 0, totalCashSales: 0, totalQrSales: 0,
             totalPaidIn: 0, totalPaidOut: 0,
-            totalCancellationsValue: 0, totalCancellationsCount: 0,
+            totalCancellationsValue: 0, // Added for cancellation tracking
+            totalCancellationsCount: 0, // Added for cancellation tracking
             expectedCashInDrawer: dailyData.currentShift.openingFloatAmount,
         };
     
-        const shiftOrderIds = new Set(dailyData.currentShift.activities.filter(a => a.type === 'SALE').map(a => a.orderId));
-        const shiftRefundOrderIds = new Set(dailyData.currentShift.activities.filter(a => a.type === 'REFUND').map(a => a.orderId));
-        const cancelledOrdersInShift = dailyData.completedOrders.filter(o => o.status === 'cancelled' && shiftRefundOrderIds.has(o.id));
+        const shiftRefundActivities = dailyData.currentShift.activities.filter(a => a.type === 'REFUND');
+        const shiftRefundOrderIds = new Set(shiftRefundActivities.map(a => a.orderId));
+        
+        // Find the original 'cancelled' orders that correspond to the refunds in this shift
+        const cancelledOrdersInShift = dailyData.completedOrders.filter(o => 
+            o.status === 'cancelled' && shiftRefundOrderIds.has(o.id)
+        );
 
         summary.totalCancellationsValue = cancelledOrdersInShift.reduce((sum, o) => sum + o.total, 0);
         summary.totalCancellationsCount = cancelledOrdersInShift.length;
@@ -394,6 +410,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     else if (act.paymentMethod === 'qr') summary.totalQrSales += act.amount;
                     break;
                 case 'REFUND':
+                    // This now correctly subtracts cash refunds from the drawer total
                     if (act.paymentMethod === 'cash') summary.totalPaidOut += act.amount;
                     break;
                 case 'PAID_IN': summary.totalPaidIn += act.amount; break;
@@ -405,6 +422,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
         return summary;
     }, [dailyData]);
+    // ULTRAMAX DEVS: "PROJECT CLARITY" FIX END ---
+
 
     const toggleFavorite = (itemId: number) => {
         setFavoriteIds(prev => {

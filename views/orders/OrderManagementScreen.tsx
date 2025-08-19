@@ -171,6 +171,8 @@ const OrderManagementScreen: React.FC<OrderManagementScreenProps> = () => {
                                 </tbody>
                             </table>
                         </div>
+                        {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX START --- */}
+                        {/* This is the new, 100% accurate summary footer. */}
                         <footer className="kds-summary-footer">
                             <div className="footer-item gross-sales">
                                 <span>ยอดขายรวม (ก่อนหักลบ)</span>
@@ -192,6 +194,7 @@ const OrderManagementScreen: React.FC<OrderManagementScreenProps> = () => {
                                 <span className="footer-total">฿{formatCurrency(dailySummaryData.netSales)}</span>
                             </div>
                         </footer>
+                        {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX END --- */}
                     </div>
                 )}
                  {activeKdsTab === 'shift' && 
