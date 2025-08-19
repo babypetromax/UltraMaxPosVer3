@@ -171,30 +171,35 @@ const OrderManagementScreen: React.FC<OrderManagementScreenProps> = () => {
                                 </tbody>
                             </table>
                         </div>
-                        {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX START --- */}
-                        {/* This is the new, 100% accurate summary footer. */}
-                        <footer className="kds-summary-footer">
-                            <div className="footer-item gross-sales">
-                                <span>ยอดขายรวม (ก่อนหักลบ)</span>
-                                <span className="footer-total">฿{formatCurrency(dailySummaryData.grossSales)}</span>
+                        {/* === ULTRAMAX DEVS UI FIX START: New Footer Design === */}
+                        <footer className="kds-summary-footer-v2">
+                            <div className="summary-item-v2">
+                                <span className="summary-label">ยอดขาย (ก่อนหักลบ)</span>
+                                <span className="summary-value" style={{ color: 'var(--primary-color)' }}>
+                                    ฿{formatCurrency(dailySummaryData.grossSales + dailySummaryData.cancellationsTotal)}
+                                </span>
                             </div>
-                            <div className="footer-item cancellations">
-                                <span>
+                            <div className="summary-item-v2">
+                                <span className="summary-label">
                                     ยอดบิลยกเลิก
                                     {dailySummaryData.cancellationsCount > 0 && (
-                                        <span className="cancellation-badge" title={`${dailySummaryData.cancellationsCount} บิล`}>
+                                        <span className="cancellation-badge-v2" title={`${dailySummaryData.cancellationsCount} บิล`}>
                                             {dailySummaryData.cancellationsCount}
                                         </span>
                                     )}
                                 </span>
-                                <span className="footer-total">฿{formatCurrency(dailySummaryData.cancellationsTotal)}</span>
+                                <span className="summary-value" style={{ color: 'var(--danger-color)' }}>
+                                    ฿{formatCurrency(dailySummaryData.cancellationsTotal)}
+                                </span>
                             </div>
-                            <div className="footer-item net-sales">
-                                <span>ยอดขายสุทธิวันนี้</span>
-                                <span className="footer-total">฿{formatCurrency(dailySummaryData.netSales)}</span>
+                            <div className="summary-item-v2">
+                                <span className="summary-label">ยอดขายสุทธิวันนี้</span>
+                                <span className="summary-value" style={{ color: 'var(--success-color)' }}>
+                                    ฿{formatCurrency(dailySummaryData.netSales)}
+                                </span>
                             </div>
                         </footer>
-                        {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX END --- */}
+                         {/* === ULTRAMAX DEVS UI FIX END === */}
                     </div>
                 )}
                  {activeKdsTab === 'shift' && 

@@ -2073,97 +2073,68 @@ body.light .receipt-editor-preview-area {
     color: #b45309;
 }
 body.dark .info-box { color: var(--warning-color); }
-/* === ULTRAMAX DEVS EDIT START: "PROJECT CLARITY" STYLES === */
-
-.kds-summary-footer {
-    display: flex;
-    justify-content: flex-end; /* Align items to the right */
-    align-items: stretch;
-    gap: 1rem;
-    padding: 0.75rem 1.5rem;
-    border-top: 2px solid var(--border-color);
+/* === ULTRAMAX DEVS UI FIX START: New KDS Footer Design === */
+/* This replaces the old .kds-summary-footer */
+.kds-summary-footer-v2 {
+    flex-shrink: 0;
+    padding: 0.75rem 1.5rem; /* Reduced padding for a sleeker look */
+    border-top: 1px solid var(--border-color);
     background-color: var(--surface-color);
+    display: flex;
+    justify-content: space-around; /* Distribute items evenly */
+    align-items: center;
 }
 
-.footer-item {
+.summary-item-v2 {
     display: flex;
     flex-direction: column;
-    text-align: right;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    min-width: 200px;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0 1.5rem;
+    position: relative;
 }
 
-.footer-item span:first-child {
-    font-size: 0.9rem;
+/* Adds a clean separator line between items */
+.summary-item-v2:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 60%;
+    background-color: var(--border-color);
+}
+
+.summary-label {
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-secondary);
-    margin-bottom: 0.25rem;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    gap: 0.5rem;
 }
 
-.footer-total {
+.summary-value {
     font-size: 1.75rem;
     font-weight: 700;
-    line-height: 1.2;
 }
 
-.footer-item.gross-sales {
-    background-color: var(--primary-light);
-}
-.footer-item.gross-sales .footer-total {
-    color: var(--primary-color);
-}
-body.dark .footer-item.gross-sales {
-    background-color: rgba(99, 102, 241, 0.2);
-}
-
-
-.footer-item.cancellations {
-    background-color: rgba(239, 68, 68, 0.1);
-}
-.footer-item.cancellations .footer-total {
-    color: var(--danger-color);
-}
-body.dark .footer-item.cancellations {
-     background-color: rgba(248, 113, 113, 0.15);
-}
-
-.footer-item.net-sales {
-    background-color: rgba(16, 185, 129, 0.1);
-}
-.footer-item.net-sales .footer-total {
-    color: var(--success-color);
-}
-body.dark .footer-item.net-sales {
-    background-color: rgba(16, 185, 129, 0.15);
-}
-
-.cancellation-badge {
+.cancellation-badge-v2 {
+    background-color: var(--danger-color);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 50%;
+    width: 1.25rem;
+    height: 1.25rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 700;
-    margin-left: 0.5rem;
-    background-color: var(--danger-color);
-    color: white;
-    border-radius: 99px;
-    min-width: 1.5rem;
-    height: 1.5rem;
-    padding: 0.25rem;
+    line-height: 1;
 }
+/* === ULTRAMAX DEVS UI FIX END === */
 
-.summary-item.cancellation-summary span:last-child {
-    color: var(--danger-color);
-    font-weight: 600;
-}
-.shift-history-card .card-body .cancellation-summary span:last-child {
-    color: var(--danger-color);
-    font-weight: 500;
-}
 /* --- Styles for Report View Toggler --- */
 .report-view-toggle {
     display: flex;
