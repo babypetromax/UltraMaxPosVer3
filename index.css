@@ -220,7 +220,7 @@ body.dark .control-btn:hover { background-color: rgba(0, 0, 0, 0.2); }
 
 /* POS View Layout */
 .pos-view {
-    display: grid;
+    display: grid; /* << แก้จาก flex เป็น grid */
     grid-template-columns: 15rem 1fr 23.75rem;
     height: calc(100vh - 3.75rem);
     overflow: hidden;
