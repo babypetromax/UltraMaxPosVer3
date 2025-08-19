@@ -30,6 +30,10 @@ export interface Order {
     cancelledAt?: Date;
     syncStatus: 'pending' | 'synced' | 'failed';
     reversalOf?: string;
+    // === ULTRAMAX DEVS EDIT START: Add Analytics Fields ===
+    readyAt?: Date;
+    preparationTimeInSeconds?: number;
+    // === ULTRAMAX DEVS EDIT END ===
 }
 
 export interface KitchenOrder extends Omit<Order, 'status'> {

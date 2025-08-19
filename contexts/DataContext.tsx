@@ -427,15 +427,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleUpdateOrderStatus = (orderId: string, status: 'cooking' | 'ready') => {
         setDailyData(prevData => {
             if (!prevData) return null;
-            const updatedKitchenOrders = prevData.kitchenOrders.map(order =>
-                order.id === orderId ? { ...order, status } : order
-            );
+    
+            // 1. เรายังคง map อาร์เรย์เดิมเพื่อหาออเดอร์ที่ต้องการแก้ไข
+            const updatedKitchenOrders = prevData.kitchenOrders.map(order => {
+                // 2. เมื่อเจอออเดอร์ที่ตรงกับ id ที่ส่งเข้ามา
+                if (order.id === orderId) {
+                    // 3. สร้าง object ออเดอร์ที่อัปเดตแล้ว พร้อมกับเปลี่ยน status
+                    const updatedOrder = { ...order, status };
+    
+                    // 4. [ส่วนที่เพิ่มเข้ามา] คือการตรวจสอบเงื่อนไขสำคัญ!
+                    // "ถ้าสถานะใหม่คือ 'ready' และออเดอร์นี้ยังไม่เคยถูกบันทึกเวลาทำเสร็จ (readyAt) มาก่อน"
+                    // การเช็ค !order.readyAt เพื่อป้องกันการบันทึกเวลาซ้ำซ้อนหากมีการกดปุ่มผิดพลาด
+                    if (status === 'ready' && !order.readyAt) {
+                        // 5. บันทึกเวลาปัจจุบันลงใน field 'readyAt'
+                        updatedOrder.readyAt = new Date();
+                        
+                        // 6. คำนวณระยะเวลาที่ใช้ทั้งหมด (เป็นวินาที)
+                        // โดยนำเวลาที่ทำเสร็จ (readyAt) มาลบกับเวลาที่บิลเข้า (timestamp)
+                        updatedOrder.preparationTimeInSeconds = Math.floor(
+                            (updatedOrder.readyAt.getTime() - new Date(order.timestamp).getTime()) / 1000
+                        );
+    
+                        // 7. บันทึกประวัติการทำงาน (Action Log) เพื่อให้ตรวจสอบย้อนหลังได้
+                        logAction(`ออเดอร์ #${orderId} เสร็จสิ้น ใช้เวลา ${updatedOrder.preparationTimeInSeconds} วินาที`);
+                    }
+                    
+                    // 8. ส่งคืนออเดอร์ที่อัปเดตข้อมูลทั้งหมดแล้วกลับไป
+                    return updatedOrder;
+                }
+                
+                // ถ้าไม่ใช่ id ที่ต้องการแก้ไข ก็ส่งคืนออเดอร์เดิมกลับไป
+                return order;
+            });
+    
+            // ส่วนที่เหลือทำงานเหมือนเดิม คือการอัปเดต state และบันทึกลง localStorage
             const newData = { ...prevData, kitchenOrders: updatedKitchenOrders };
             localStorage.setItem(`${DAILY_DATA_KEY_PREFIX}${newData.date}`, JSON.stringify(newData));
             return newData;
         });
     };
-
     const handleCompleteOrder = (orderId: string) => {
         setDailyData(prevData => {
             if (!prevData) return null;

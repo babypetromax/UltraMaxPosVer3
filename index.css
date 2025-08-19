@@ -2174,3 +2174,51 @@ body.dark .report-view-toggle button.active {
 }
 
 /* === ULTRAMAX DEVS EDIT END === */
+/* === ULTRAMAX DEVS KDS ENHANCEMENT STYLES START === */
+
+/* New Status Colors */
+.order-card.status-new { border-color: #3b82f6; } /* Blue 500 */
+.order-card.status-delayed { border-color: #ef4444; } /* Red 500 */
+
+/* Apply colors to Status Badges */
+.status-badge.status-new { background-color: #3b82f6; color: white; }
+.status-badge.status-delayed { background-color: #ef4444; color: white; }
+
+/* Apply colors to KDS Action Buttons */
+.kds-action-btn.status-new { background-color: #3b82f6; }
+.kds-action-btn.status-cooking { background-color: var(--warning-color); color: var(--secondary-color); }
+.kds-action-btn.status-delayed { background-color: #ef4444; }
+.kds-action-btn.status-ready { background-color: var(--success-color); }
+
+/* Smart Header Summary Tags */
+.kds-summary-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: 1.5rem;
+}
+
+.summary-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 99px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.summary-tag .material-symbols-outlined {
+    font-size: 1.1rem;
+}
+
+.summary-tag.status-new { background-color: #bfdbfe; color: #1e40af; } /* Blue 200 / 800 */
+.summary-tag.status-cooking { background-color: #fef08a; color: #854d0e; } /* Yellow 200 / 800 */
+.summary-tag.status-delayed { background-color: #fecaca; color: #991b1b; } /* Red 200 / 800 */
+
+body.dark .summary-tag.status-new { background-color: #1e40af; color: #dbeafe; }
+body.dark .summary-tag.status-cooking { background-color: #854d0e; color: #fef9c3; }
+body.dark .summary-tag.status-delayed { background-color: #991b1b; color: #fee2e2; }
+
+/* === ULTRAMAX DEVS KDS ENHANCEMENT STYLES END === */
