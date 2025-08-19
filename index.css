@@ -1676,10 +1676,12 @@ body.dark .kds-completed-table tr.reversal-bill td {
 .over-short-value.even { background-color: var(--border-color); color: var(--text-secondary); }
 
 /* --- PRINTING STYLES --- */
+/* === PRINTING STYLES (ULTRAMAX DEVS - VERIFIED VERSION) === */
 @media print {
     body * {
         visibility: hidden;
     }
+
     #printable-receipt, #printable-receipt * {
         visibility: visible;
     }
@@ -1709,8 +1711,9 @@ body.dark .kds-completed-table tr.reversal-bill td {
         width: 100%;
         box-shadow: none;
         font-size: 9pt;
-        -webkit-print-color-adjust: exact;
-        color-adjust: exact;
+        /* === โค้ดที่แก้ไขแล้วตามคำแนะนำของ VS Code === */
+        -webkit-print-color-adjust: exact; /* สำหรับ Chrome, Safari, Edge */
+        print-color-adjust: exact;       /* มาตรฐานสากลสำหรับ Firefox และอื่นๆ */
     }
 
     #printable-receipt, #printable-receipt * {
@@ -1726,27 +1729,27 @@ body.dark .kds-completed-table tr.reversal-bill td {
     .receipt-logo, .receipt-promo {
         max-width: 50% !important;
     }
-}
 
-/* === ULTRAMAX DEVS EDIT START: Cash Drawer Kick Command === */
-/* ซ่อนโค้ดคำสั่งบนหน้าจอปกติ */
-@media screen {
-  .cash-drawer-kick-command {
-    display: none;
-    visibility: hidden;
-  }
-}
+    /* === ULTRAMAX DEVS EDIT START: Cash Drawer Kick Command === */
+    /* ซ่อนโค้ดคำสั่งบนหน้าจอปกติ */
+    @media screen {
+      .cash-drawer-kick-command {
+        display: none;
+        visibility: hidden;
+      }
+    }
 
-/* แสดงโค้ดคำสั่งเมื่อทำการพิมพ์เท่านั้น */
-@media print {
-  .cash-drawer-kick-command {
-    display: block;
-    visibility: visible;
-    position: absolute;
-    bottom: 0;
-  }
+    /* แสดงโค้ดคำสั่งเมื่อทำการพิมพ์เท่านั้น */
+    @media print {
+      .cash-drawer-kick-command {
+        display: block;
+        visibility: visible;
+        position: absolute;
+        bottom: 0;
+      }
+    }
+    /* === ULTRAMAX DEVS EDIT END === */
 }
-/* === ULTRAMAX DEVS EDIT END === */
 
 
 /* --- Keyboard Navigation --- */

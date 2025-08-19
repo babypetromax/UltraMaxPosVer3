@@ -3,6 +3,9 @@ import { useApp } from '../../contexts/AppContext';
 import { useData } from '../../contexts/DataContext';
 import { useCart } from '../../contexts/CartContext';
 import { useConfirmation } from '../../contexts/ConfirmationContext';
+// === ULTRAMAX DEVS EDIT START: Import the new smart image component ===
+import MenuCardImage from '../../components/MenuCardImage';
+// === ULTRAMAX DEVS EDIT END ===
 
 const MenuGrid: React.FC = () => {
     const { 
@@ -85,7 +88,9 @@ const MenuGrid: React.FC = () => {
                                     <span className={`material-symbols-outlined ${favoriteIds.has(item.id) ? 'filled' : ''}`}>star</span>
                                 </button>
                                 <div className="card-content" onClick={() => addToCart(item)}>
-                                    <img src={item.image} alt={item.name} onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop'; }}/>
+                                    {/* === ULTRAMAX DEVS EDIT START: Replace <img> with smart component === */}
+                                    <MenuCardImage item={item} />
+                                    {/* === ULTRAMAX DEVS EDIT END === */}
                                     <div className="menu-card-body">
                                         <h3 className="menu-card-title">{item.name}</h3>
                                         <p className="menu-card-price">฿{item.price.toFixed(2)}</p>

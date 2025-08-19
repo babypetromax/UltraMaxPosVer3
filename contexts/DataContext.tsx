@@ -12,6 +12,7 @@ import {
 import { getYYYYMMDD } from '../helpers';
 import { useApp } from './AppContext';
 import { useNotification } from './NotificationContext';
+import { fetchAndCacheImage } from '../lib/imageStore';
 
 interface DataContextType {
     ai: GoogleGenAI | null;
@@ -43,7 +44,8 @@ interface DataContextType {
     handlePaidInOut: (activity: { type: 'PAID_IN' | 'PAID_OUT', amount: number, description: string }) => void;
     handleManualDrawerOpen: (description: string) => void;
     handleEndShift: (endShiftData: { counted: number, nextShift: number }) => void;
-    handleSaveMenuItem: (itemToSave: MenuItem) => Promise<void>;
+    // แก้ไข Type นี้เพื่อให้รับ imageFile เพิ่ม
+    handleSaveMenuItem: (itemToSave: MenuItem, imageFile: File | null) => Promise<void>;
     handleDeleteItem: (itemId: number) => Promise<void>;
     handleAddCategory: (newCategoryName: string) => Promise<void>;
     handleDeleteCategory: (categoryToDelete: string) => Promise<void>;
@@ -658,18 +660,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
     
-    const handleSaveMenuItem = async (itemToSave: MenuItem) => {
-        const isNew = !('id' in itemToSave && itemToSave.id);
-
+    const handleSaveMenuItem = async (itemToSave: MenuItem, imageFile: File | null) => {
+        if (!isAdminMode) return;
+    
+        let itemData = { ...itemToSave };
+    
+        // === LOGIC ใหม่: จัดการการอัปโหลดรูปภาพ ===
+        if (imageFile) {
+            showNotification('กำลังอัปโหลดรูปภาพ...', 'info');
+    
+            // หมายเหตุ: ในอนาคต Nexus จะเปลี่ยนส่วนนี้เป็นการอัปโหลดไปยัง Firebase Storage จริง
+            // แต่ตอนนี้เราจะจำลองการอัปโหลดและใช้ URL ชั่วคราวไปก่อน
+            // **ส่วนนี้ไม่ควรแก้ไข เป็นการจำลองเท่านั้น**
+            const uploadResult = await new Promise<{ url: string }>(resolve => {
+                setTimeout(() => {
+                    // ที่อยู่รูปภาพจำลองเพื่อให้เห็นภาพว่าทำงานได้
+                    const newImageUrl = `https://picsum.photos/400/300?random=${Date.now()}`;
+                    console.log(`Simulated upload complete for ${imageFile.name}. New URL: ${newImageUrl}`);
+                    resolve({ url: newImageUrl });
+                }, 1500); // จำลองว่าใช้เวลาอัปโหลด 1.5 วินาที
+            });
+    
+            itemData.image = uploadResult.url; // อัปเดต URL รูปภาพในข้อมูลที่จะบันทึก
+        }
+        // === จบ LOGIC ใหม่ ===
+    
+        const isNew = !('id' in itemData && itemData.id);
+    
         if (isNew) {
             const tempId = Date.now();
-            const newItem = { ...itemToSave, id: tempId };
+            const newItem = { ...itemData, id: tempId };
             setMenuItems(prev => [...prev, newItem]);
             logAction(`เพิ่มสินค้าใหม่ '${newItem.name}' (กำลังรอการยืนยัน)`);
-            const result = await syncMenuChange('addMenuItem', { item: itemToSave });
+    
+            const result = await syncMenuChange('addMenuItem', { item: itemData });
+    
             if (result.status === 'success' && result.item) {
                 const finalItem = { ...result.item, price: parseFloat(result.item.price) };
                 setMenuItems(prev => prev.map(item => (item.id === tempId ? finalItem : item)));
+                fetchAndCacheImage(finalItem.id, finalItem.image); // สั่งให้ Cache รูปใหม่ทันที
                 logAction(`ยืนยันการเพิ่มสินค้า '${finalItem.name}' (ID: ${finalItem.id})`);
                 showNotification(`เพิ่มสินค้า '${finalItem.name}' สำเร็จ`, 'success');
             } else {
@@ -677,16 +706,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 logAction(`ล้มเหลวในการเพิ่มสินค้า '${newItem.name}'`);
             }
         } else {
-            const originalItem = menuItems.find(i => i.id === itemToSave.id);
+            const originalItem = menuItems.find(i => i.id === itemData.id);
             if (!originalItem) return;
-            setMenuItems(prev => prev.map(item => (item.id === itemToSave.id ? itemToSave : item)));
-            logAction(`แก้ไขสินค้า '${itemToSave.name}' (ID: ${itemToSave.id})`);
-            const result = await syncMenuChange('updateMenuItem', { item: itemToSave });
+    
+            setMenuItems(prev => prev.map(item => (item.id === itemData.id ? itemData : item)));
+            logAction(`แก้ไขสินค้า '${itemData.name}' (ID: ${itemData.id})`);
+    
+            const result = await syncMenuChange('updateMenuItem', { item: itemData });
+    
             if (result.status === 'success') {
-                 showNotification(`บันทึกการเปลี่ยนแปลง '${itemToSave.name}' สำเร็จ`, 'success');
+                fetchAndCacheImage(itemData.id, itemData.image); // สั่งให้ Cache รูปใหม่อีกครั้ง (เผื่อมีการเปลี่ยนรูป)
+                showNotification(`บันทึกการเปลี่ยนแปลง '${itemData.name}' สำเร็จ`, 'success');
             } else {
-                setMenuItems(prev => prev.map(item => (item.id === itemToSave.id ? originalItem : item)));
-                logAction(`ล้มเหลวในการแก้ไขสินค้า '${itemToSave.name}'`);
+                setMenuItems(prev => prev.map(item => (item.id === itemData.id ? originalItem : item)));
+                logAction(`ล้มเหลวในการแก้ไขสินค้า '${itemData.name}'`);
             }
         }
     };
