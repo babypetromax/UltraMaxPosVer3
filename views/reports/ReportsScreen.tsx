@@ -14,7 +14,7 @@ import { useData } from '../../contexts/DataContext';
 import { useApp } from '../../contexts/AppContext';
 
 
-type ReportTab = 'summary' | 'byProduct' | 'byCategory' | 'byPayment' | 'receipts' | 'discounts' | 'activityLog' | 'cancelledBills' | 'shiftActivities';
+type ReportTab = 'summary' | 'byProduct' | 'byCategory' | 'byEmployee' | 'byPayment' | 'receipts' | 'byModifier' | 'discounts' | 'taxes' | 'shifts' | 'activityLog' | 'cancelledBills';
 
 const ReportsScreen: React.FC = () => {
     const { dailyData, shiftHistory, handleCancelBill, ai } = useData();
@@ -22,21 +22,25 @@ const ReportsScreen: React.FC = () => {
 
     const [activeTab, setActiveTab] = useState<ReportTab>('summary');
     
+    // --- UPDATE: Added new report tabs based on the proposal ---
     const tabs: {id: ReportTab, name: string, icon: string}[] = [
       {id: 'summary', name: 'สรุปยอดขาย', icon: 'summarize'},
-      {id: 'receipts', name: 'บิลย้อนหลัง', icon: 'receipt_long'},
-      {id: 'shiftActivities', name: 'ประวัติกะและลิ้นชัก', icon: 'history'},
       {id: 'byProduct', name: 'ยอดขายตามสินค้า', icon: 'inventory_2'},
       {id: 'byCategory', name: 'ยอดขายตามหมวดหมู่', icon: 'category'},
+      {id: 'byEmployee', name: 'ยอดขายตามพนักงาน', icon: 'badge'},
       {id: 'byPayment', name: 'ยอดขายตามการชำระเงิน', icon: 'payment'},
-      {id: 'discounts', name: 'รายงานส่วนลด', icon: 'percent'},
+      {id: 'receipts', name: 'ใบเสร็จรับเงิน', icon: 'receipt_long'},
+      {id: 'byModifier', name: 'ยอดขายตามตัวเลือก', icon: 'add_notes'},
+      {id: 'discounts', name: 'ส่วนลด', icon: 'percent'},
+      {id: 'taxes', name: 'ภาษี', icon: 'paid'},
+      {id: 'shifts', name: 'กะ', icon: 'history'},
+      // --- Separating system logs for clarity ---
       {id: 'cancelledBills', name: 'รายงานการลบบิล', icon: 'delete_forever'},
       {id: 'activityLog', name: 'ประวัติการทำงาน', icon: 'history_toggle_off'}
     ];
     
     const allOrders = useMemo(() => {
         if (!dailyData) return [];
-        // This logic seems a bit complex, might need review but keeping it for now.
         return [...dailyData.completedOrders, ...shiftHistory.flatMap(s => s.activities.filter(a => a.orderId).map(a => dailyData.completedOrders.find(o => o.id === a.orderId))).filter(Boolean) as Order[]];
     }, [dailyData, shiftHistory]);
 
@@ -57,13 +61,21 @@ const ReportsScreen: React.FC = () => {
             <main className="settings-content">
                 {activeTab === 'summary' && <SummaryReport orders={allOrders} ai={ai} />}
                 {activeTab === 'receipts' && <ReceiptsHistory orders={dailyData?.completedOrders || []} BillDetailsComponent={BillDetails} onCancelBill={handleCancelBill} isAdminMode={isAdminMode} />}
-                {activeTab === 'shiftActivities' && <ShiftActivityReport shifts={shiftHistory} />}
+                {activeTab === 'shifts' && <ShiftActivityReport shifts={shiftHistory} />}
                 {activeTab === 'byProduct' && <SalesByProductReport orders={allOrders} />}
                 {activeTab === 'byCategory' && <SalesByCategoryReport orders={allOrders} />}
                 {activeTab === 'byPayment' && <SalesByPaymentReport orders={allOrders} />}
                 {activeTab === 'discounts' && <DiscountReport orders={allOrders} />}
                 {activeTab === 'cancelledBills' && <CancelledBillsReport orders={allOrders} />}
                 {activeTab === 'activityLog' && <ActivityLogReport log={dailyData?.activityLog || []} />}
+                
+                {/* --- UPDATE: Placeholder for new reports --- */}
+                {['byEmployee', 'byModifier', 'taxes'].includes(activeTab) && (
+                    <div className="settings-card placeholder">
+                        <h3>{tabs.find(t => t.id === activeTab)?.name}</h3>
+                        <p>ส่วนนี้ยังอยู่ในระหว่างการพัฒนา</p>
+                    </div>
+                )}
             </main>
         </div>
     )

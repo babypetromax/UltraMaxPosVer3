@@ -1,135 +1,173 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Order } from '../../types';
-import { Bar, Pie } from 'react-chartjs-2';
 import { formatCurrency } from '../../helpers';
+import { Bar, Pie } from 'react-chartjs-2';
+import { ChartOptions } from 'chart.js';
+
+// --- Helper function to generate colors for charts ---
+const generatePastelColors = (numColors: number) => {
+    const colors = [];
+    for (let i = 0; i < numColors; i++) {
+        const hue = (i * 360) / numColors;
+        colors.push(`hsla(${hue}, 70%, 80%, 0.9)`);
+    }
+    return colors;
+};
+
 
 interface SalesByProductReportProps {
     orders: Order[];
 }
 
-// --- สีสำหรับ Top 5 Products ---
-const PRODUCT_COLORS = ['#34d399', '#60a5fa', '#f87171', '#fbbf24', '#a78bfa'];
+type ChartType = 'bar' | 'pie' | 'table';
 
 const SalesByProductReport: React.FC<SalesByProductReportProps> = ({ orders }) => {
+    const [chartType, setChartType] = useState<ChartType>('bar');
+    const [dateRange, setDateRange] = useState({ 
+        start: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0], 
+        end: new Date().toISOString().split('T')[0] 
+    });
 
-    // 1. คำนวณยอดขายรวมของสินค้าแต่ละชนิด
-    const productSales = useMemo(() => {
-        const validOrders = orders.filter(o => o.status !== 'cancelled' && o.total > 0);
-        const sales: { [key: string]: { id: number, name: string, quantity: number, total: number } } = {};
+    // --- Core Data Processing Logic (Memoized for performance) ---
+    const processedData = useMemo(() => {
+        const start = new Date(dateRange.start);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(dateRange.end);
+        end.setHours(23, 59, 59, 999);
+
+        const validOrders = orders.filter(o => {
+            const orderDate = new Date(o.timestamp);
+            return o.status !== 'cancelled' && orderDate >= start && orderDate <= end;
+        });
+
+        // 1. Aggregate total sales per product
+        const salesByProduct: { [key: string]: { name: string, quantity: number, total: number } } = {};
         validOrders.forEach(order => {
             order.items.forEach(item => {
-                if (!sales[item.id]) sales[item.id] = { id: item.id, name: item.name, quantity: 0, total: 0 };
-                sales[item.id].quantity += item.quantity;
-                sales[item.id].total += (item.price * item.quantity);
+                if (!salesByProduct[item.id]) salesByProduct[item.id] = { name: item.name, quantity: 0, total: 0 };
+                const sign = Math.sign(order.total) || 1;
+                salesByProduct[item.id].quantity += item.quantity * sign;
+                salesByProduct[item.id].total += (item.price * item.quantity) * sign;
             });
         });
-        return Object.values(sales).sort((a, b) => b.total - a.total);
-    }, [orders]);
+        const productRanking = Object.values(salesByProduct).sort((a, b) => b.total - a.total);
 
-    // 2. คัดเลือก Top 5 และคำนวณยอดขายรายชั่วโมงสำหรับกราฟแท่ง
-    const top5ProductSales = productSales.slice(0, 5);
-    const top5ProductIds = new Set(top5ProductSales.map(p => p.id));
-
-    const hourlyStackedData = useMemo(() => {
-        const validOrders = orders.filter(o => o.status !== 'cancelled' && o.total > 0);
-        const hourlySales: { [hour: number]: { [productId: number]: number } } = {};
-
-        for (let i = 0; i < 24; i++) hourlySales[i] = {};
+        // 2. Aggregate sales by hour for stacked bar chart
+        const salesByHour: { [hour: number]: { [productName: string]: number } } = {};
+        for (let i = 0; i < 24; i++) salesByHour[i] = {};
 
         validOrders.forEach(order => {
             const hour = new Date(order.timestamp).getHours();
             order.items.forEach(item => {
-                if (top5ProductIds.has(item.id)) {
-                    if (!hourlySales[hour][item.id]) hourlySales[hour][item.id] = 0;
-                    hourlySales[hour][item.id] += item.price * item.quantity;
-                }
+                if (!salesByHour[hour][item.name]) salesByHour[hour][item.name] = 0;
+                salesByHour[hour][item.name] += item.price * item.quantity;
             });
         });
 
-        const labels = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
-        const datasets = top5ProductSales.map((product, index) => ({
-            label: product.name,
-            data: labels.map((_, hour) => hourlySales[hour][product.id] || 0),
-            backgroundColor: PRODUCT_COLORS[index],
-        }));
-        
-        return { labels, datasets };
-    }, [orders, top5ProductSales, top5ProductIds]);
+        return { productRanking, salesByHour };
+    }, [orders, dateRange]);
 
+    // --- Chart Configurations ---
+    const top5Products = useMemo(() => processedData.productRanking.slice(0, 5), [processedData.productRanking]);
+    const top5ProductNames = useMemo(() => top5Products.map(p => p.name), [top5Products]);
+    const chartColors = useMemo(() => generatePastelColors(top5Products.length), [top5Products]);
 
-    // 3. เตรียมข้อมูลสำหรับกราฟวงกลม
+    const barChartData = {
+        labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+        datasets: [
+            ...top5Products.map((product, index) => ({
+                label: product.name,
+                data: Array.from({ length: 24 }, (_, hour) => processedData.salesByHour[hour]?.[product.name] || 0),
+                backgroundColor: chartColors[index],
+            })),
+        ],
+    };
+
     const pieChartData = {
-        labels: top5ProductSales.map(p => p.name),
+        labels: top5Products.map(p => p.name),
         datasets: [{
-            data: top5ProductSales.map(p => p.total),
-            backgroundColor: PRODUCT_COLORS,
-        }]
+            label: 'ยอดขาย',
+            data: top5Products.map(p => p.total),
+            backgroundColor: chartColors,
+            borderColor: 'rgba(255, 255, 255, 0.5)',
+            borderWidth: 1,
+        }],
     };
     
-    // --- ตัวแปรสำหรับ Chart Options ---
-    const barChartOptions = {
+    const chartOptions: ChartOptions<'bar'> = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: { legend: { position: 'top' as const } },
-        scales: { x: { stacked: true }, y: { stacked: true } }
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
     };
-    const pieChartOptions = { responsive: true, plugins: { legend: { position: 'top' as const } } };
 
     return (
         <div>
-            {/* เราจะเพิ่มส่วน Control Panel ที่นี่ในอนาคต */}
-            <div className="report-header"><h1>ยอดขายตามสินค้า</h1></div>
-            
-            {/* ส่วนแสดง Top 5 Products */}
-            <div className="summary-cards" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(15rem, 1fr))' }}>
-                {top5ProductSales.map((product, index) => (
-                    <div key={product.id} className="summary-card" style={{ borderLeft: `5px solid ${PRODUCT_COLORS[index]}` }}>
-                        <div className="summary-card-title" style={{ fontWeight: 600 }}>{index + 1}. {product.name}</div>
-                        <div className="summary-card-value">฿{formatCurrency(product.total)}</div>
-                        <p style={{ color: 'var(--text-secondary)' }}>ขายได้ {product.quantity} ชิ้น</p>
+            <div className="report-header">
+                <h1>ยอดขายตามสินค้า</h1>
+                <div className="report-controls">
+                    <div className="control-group">
+                        <label>เริ่มต้น</label>
+                        <input type="date" value={dateRange.start} onChange={e => setDateRange(p => ({ ...p, start: e.target.value }))} />
                     </div>
-                ))}
-            </div>
-
-            {/* ส่วนแสดงกราฟ */}
-            <div className="chart-container" style={{ marginTop: '2rem' }}>
-                <h3>ยอดขายรายชั่วโมง (5 อันดับแรก)</h3>
-                <Bar options={barChartOptions} data={hourlyStackedData} />
-            </div>
-            
-            <div className="chart-container" style={{ marginTop: '2rem', maxWidth: '600px', margin: '2rem auto' }}>
-                 <h3>สัดส่วนยอดขาย (5 อันดับแรก)</h3>
-                 <Pie options={pieChartOptions} data={pieChartData} />
-            </div>
-
-            {/* ส่วนตารางข้อมูลทั้งหมด */}
-            <div style={{ marginTop: '2rem' }}>
-                <h3>รายการสินค้าที่ขายได้ทั้งหมด</h3>
-                <table className="report-table">
-                    <thead><tr><th>อันดับ</th><th>ชื่อสินค้า</th><th style={{textAlign: 'right'}}>จำนวนที่ขายได้ (สุทธิ)</th><th style={{textAlign: 'right'}}>ยอดขายรวม (สุทธิ)</th></tr></thead>
-                    <tbody>
-                        {productSales.map((product, index) => (
-                            <tr key={product.id}>
-                                <td>{index + 1}</td>
-                                <td>{product.name}</td>
-                                <td style={{textAlign: 'right'}}>{product.quantity}</td>
-                                <td style={{textAlign: 'right'}}>฿{formatCurrency(product.total)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-             {/* Synapse's AI Section */}
-            <div className="ai-analysis-section" style={{ marginTop: '2rem' }}>
-               <div className="ai-analysis-header"><span className="material-symbols-outlined">psychology</span>AI วิเคราะห์สินค้าขายดี</div>
-                <div className="ai-analysis-content" style={{ marginTop: '1rem' }}>
-                    <p>
-                        {productSales.length > 0
-                            ? `สินค้าขายดีที่สุดคือ "${productSales[0].name}" ซึ่งสร้างยอดขายได้ถึง ฿${formatCurrency(productSales[0].total)}! ลองพิจารณาจัดโปรโมชันจับคู่กับสินค้าที่ขายดีรองลงมาเพื่อเพิ่มยอดขายเฉลี่ยต่อบิล`
-                            : 'ยังไม่มีข้อมูลเพียงพอสำหรับวิเคราะห์'}
-                    </p>
+                    <div className="control-group">
+                        <label>สิ้นสุด</label>
+                        <input type="date" value={dateRange.end} onChange={e => setDateRange(p => ({ ...p, end: e.target.value }))} />
+                    </div>
                 </div>
             </div>
+
+            <div className="report-view-toggle">
+                <button className={chartType === 'bar' ? 'active' : ''} onClick={() => setChartType('bar')}>
+                    <span className="material-symbols-outlined">bar_chart</span>กราฟแท่ง
+                </button>
+                <button className={chartType === 'pie' ? 'active' : ''} onClick={() => setChartType('pie')}>
+                    <span className="material-symbols-outlined">pie_chart</span>กราฟวงกลม
+                </button>
+                 <button className={chartType === 'table' ? 'active' : ''} onClick={() => setChartType('table')}>
+                    <span className="material-symbols-outlined">table_rows</span>ตารางข้อมูล
+                </button>
+            </div>
+            
+            {chartType === 'bar' && (
+                 <div className="chart-container" style={{height: '500px'}}>
+                    <h3>ยอดขายรายชั่วโมง (5 อันดับแรก)</h3>
+                    <Bar options={chartOptions} data={barChartData} />
+                </div>
+            )}
+            
+            {chartType === 'pie' && (
+                <div className="chart-container" style={{maxWidth: '600px', margin: 'auto'}}>
+                    <h3>สัดส่วนยอดขาย (5 อันดับแรก)</h3>
+                    <Pie data={pieChartData} />
+                </div>
+            )}
+
+            {chartType === 'table' && (
+                 <div>
+                    <h3>ตารางสรุปยอดขายตามสินค้า (ขายดีที่สุด)</h3>
+                    <table className="report-table" style={{marginTop: '1rem'}}>
+                        <thead>
+                            <tr>
+                                <th>อันดับ</th>
+                                <th>ชื่อสินค้า</th>
+                                <th>จำนวนที่ขายได้ (สุทธิ)</th>
+                                <th>ยอดขายรวม (สุทธิ)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {processedData.productRanking.map((product, index) => (
+                                <tr key={product.name}>
+                                    <td>{index + 1}</td>
+                                    <td>{product.name}</td>
+                                    <td>{product.quantity}</td>
+                                    <td>฿{formatCurrency(product.total)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 };
