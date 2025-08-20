@@ -1,7 +1,9 @@
 import React from 'react';
 import { useApp } from '../contexts/AppContext';
-import { useData } from '../contexts/DataContext';
-import { useCart } from '../contexts/CartContext';
+// === ULTRAMAX DEVS EDIT START: Import the new central store ===
+import { useStore } from '../contexts/store';
+// We no longer need useData or useCart
+// === ULTRAMAX DEVS EDIT END ===
 
 const TopNav: React.FC = () => {
     const { 
@@ -17,8 +19,13 @@ const TopNav: React.FC = () => {
         handleZoomIn, 
         setIsOrderPanelOpen 
     } = useApp();
-    const { fetchMenuData } = useData();
-    const { cartItemCount } = useCart();
+
+    // === ULTRAMAX DEVS EDIT START: Selectively subscribe to the store ===
+    const fetchMenuData = useStore(state => state.fetchMenuData);
+    // We calculate cartItemCount directly from the cart state for maximum efficiency.
+    // This component will only re-render if the *number* of items changes.
+    const cartItemCount = useStore(state => state.cart.reduce((sum, item) => sum + item.quantity, 0));
+    // === ULTRAMAX DEVS EDIT END ===
 
     return (
         <nav className="top-nav">

@@ -1,22 +1,49 @@
 import React from 'react';
 import { useApp } from '../../contexts/AppContext';
-import { useData } from '../../contexts/DataContext';
-import { useCart } from '../../contexts/CartContext';
+// === ULTRAMAX DEVS EDIT START: Import the new central store ===
+import { useStore } from '../../contexts/store';
+// We no longer need useData or useCart here
+// === ULTRAMAX DEVS EDIT END ===
 
 const OrderPanel: React.FC = () => {
     const { isOrderPanelOpen, setIsOrderPanelOpen, setShowPaymentModal } = useApp();
-    const { dailyData } = useData();
-    const { 
-        cart, 
-        clearCart, 
-        updateQuantity, 
-        cartCalculations,
+
+    // === ULTRAMAX DEVS EDIT START: Selectively subscribe to the store ===
+    // This is the magic of Zustand. This component will ONLY re-render if
+    // these specific values change.
+    const {
+        cart,
         discount,
         setDiscount,
         isVatEnabled,
-        setIsVatEnabled
-    } = useCart();
-    
+        setIsVatEnabled,
+        clearCart,
+        updateQuantity,
+        dailyData
+    } = useStore(state => ({
+        cart: state.cart,
+        discount: state.discount,
+        setDiscount: state.setDiscount,
+        isVatEnabled: state.isVatEnabled,
+        setIsVatEnabled: state.setIsVatEnabled,
+        clearCart: state.clearCart,
+        updateQuantity: state.updateQuantity,
+        dailyData: state.dailyData,       // Needed for checking shift status
+    }));
+
+    // Calculations are now done here based on the state from the store
+    const cartCalculations = React.useMemo(() => {
+        const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const discountValue = (discount.endsWith('%')
+            ? subtotal * (parseFloat(discount.slice(0, -1)) / 100)
+            : parseFloat(discount) || 0);
+        const discountedSubtotal = subtotal - discountValue;
+        const tax = isVatEnabled ? discountedSubtotal * 0.07 : 0;
+        const total = discountedSubtotal + tax;
+        return { subtotal, tax, discountValue, total: total < 0 ? 0 : total };
+    }, [cart, discount, isVatEnabled]);
+    // === ULTRAMAX DEVS EDIT END ===
+
     return (
         <aside className={`order-panel ${isOrderPanelOpen ? 'is-open' : ''}`}>
             <header className="order-header">

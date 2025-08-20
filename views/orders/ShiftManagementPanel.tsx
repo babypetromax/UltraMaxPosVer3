@@ -1,19 +1,73 @@
 import React, { useMemo } from 'react';
-import { getYYYYMMDD, formatCurrency } from '../../helpers';
+import { formatCurrency, getYYYYMMDD } from '../../helpers';
 import { MAX_SHIFTS_PER_DAY } from '../../constants';
-import { useData } from '../../contexts/DataContext';
 import { useApp } from '../../contexts/AppContext';
+// === ULTRAMAX DEVS EDIT START: Import the new central store ===
+import { useStore } from '../../contexts/store';
+// === ULTRAMAX DEVS EDIT END ===
 
 const ShiftManagementPanel: React.FC = () => {
-    const { dailyData, shiftHistory, shiftSummaryData } = useData();
     const { setShowStartShiftModal, setShowPaidInOutModal, setShowEndShiftModal } = useApp();
 
-    const { currentShift } = dailyData;
+    // === ULTRAMAX DEVS EDIT START: Selectively subscribe to the store ===
+    const { dailyData, shiftHistory } = useStore(state => ({
+        dailyData: state.dailyData,
+        shiftHistory: state.shiftHistory,
+    }));
+
+    // Shift summary calculation logic is now here, derived from store state
+    const shiftSummaryData = useMemo(() => {
+        if (!dailyData?.currentShift) return null;
+    
+        const summary = {
+            totalCashSales: 0, 
+            totalQrSales: 0,
+            totalCancellationsValue: 0,
+            totalPaidIn: 0,
+            totalPaidOut: 0,
+            expectedCashInDrawer: dailyData.currentShift.openingFloatAmount,
+        };
+    
+        const shiftRefundOrderIds = new Set(dailyData.currentShift.activities.filter(a => a.type === 'REFUND').map(a => a.orderId));
+        const cancelledOrdersInShift = dailyData.completedOrders.filter(o => o.status === 'cancelled' && shiftRefundOrderIds.has(o.id));
+
+        summary.totalCancellationsValue = cancelledOrdersInShift.reduce((sum, o) => sum + o.total, 0);
+
+        for (const act of dailyData.currentShift.activities) {
+            switch (act.type) {
+                case 'SALE':
+                    if (act.paymentMethod === 'cash') summary.totalCashSales += act.amount;
+                    else if (act.paymentMethod === 'qr') summary.totalQrSales += act.amount;
+                    break;
+                case 'PAID_IN': 
+                    summary.totalPaidIn += act.amount;
+                    break;
+                case 'PAID_OUT': 
+                    summary.totalPaidOut += act.amount;
+                    break;
+                case 'REFUND':
+                     if (act.paymentMethod === 'cash') summary.totalPaidOut += act.amount;
+                     break;
+            }
+        }
+        
+        summary.expectedCashInDrawer = dailyData.currentShift.openingFloatAmount 
+                                     + summary.totalCashSales 
+                                     + summary.totalPaidIn 
+                                     - summary.totalPaidOut;
+    
+        return summary;
+    }, [dailyData]);
+    // === ULTRAMAX DEVS EDIT END ===
 
     const todaysShifts = useMemo(() => {
         const todayStr = getYYYYMMDD(new Date());
         return shiftHistory.filter(s => s.id.startsWith(todayStr));
     }, [shiftHistory]);
+
+    if (!dailyData) return null; // Should not happen if AppContent handles loading state
+
+    const { currentShift } = dailyData;
 
     if (!currentShift && todaysShifts.length >= MAX_SHIFTS_PER_DAY) {
          return (
@@ -51,12 +105,10 @@ const ShiftManagementPanel: React.FC = () => {
                     <div className="summary-item"><span>เงินเริ่มต้น</span> <span>฿{formatCurrency(currentShift.openingFloatAmount)}</span></div>
                     <div className="summary-item"><span>ยอดขายเงินสด</span> <span>฿{formatCurrency(shiftSummaryData?.totalCashSales || 0)}</span></div>
                     <div className="summary-item"><span>ยอดขาย QR</span> <span>฿{formatCurrency(shiftSummaryData?.totalQrSales || 0)}</span></div>
-                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX START --- */}
                     <div className="summary-item cancellation-summary">
                         <span>ยอดบิลยกเลิก</span> 
                         <span>-฿{formatCurrency(shiftSummaryData?.totalCancellationsValue || 0)}</span>
                     </div>
-                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX END --- */}
                     <div className="summary-item total"><span>เงินสดที่ควรมีในลิ้นชัก (คาดการณ์)</span> <span>฿{formatCurrency(shiftSummaryData?.expectedCashInDrawer || 0)}</span></div>
                 </div>
                 <div className="shift-actions">
@@ -86,9 +138,7 @@ const ShiftManagementPanel: React.FC = () => {
                                     <div><span>เงินเริ่มต้น:</span> <span>฿{formatCurrency(currentShift.openingFloatAmount)}</span></div>
                                     <div><span>ยอดขายเงินสด:</span> <span>฿{formatCurrency(shiftSummaryData?.totalCashSales || 0)}</span></div>
                                     <div><span>ยอดขาย QR:</span> <span>฿{formatCurrency(shiftSummaryData?.totalQrSales || 0)}</span></div>
-                                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX START --- */}
                                     <div className="cancellation-summary"><span>ยอดบิลยกเลิก:</span> <span>-฿{formatCurrency(shiftSummaryData?.totalCancellationsValue || 0)}</span></div>
-                                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX END --- */}
                                     <div className="total"><span>เงินสดคาดการณ์:</span> <span>฿{formatCurrency(shiftSummaryData?.expectedCashInDrawer || 0)}</span></div>
                                 </div>
                             </div>
@@ -106,9 +156,7 @@ const ShiftManagementPanel: React.FC = () => {
                                     <div><span>เงินเริ่มต้น:</span> <span>฿{formatCurrency(closedShift.openingFloatAmount)}</span></div>
                                     <div><span>ยอดขายเงินสด:</span> <span>฿{formatCurrency(closedShift.totalCashSales || 0)}</span></div>
                                     <div><span>ยอดขาย QR:</span> <span>฿{formatCurrency(closedShift.totalQrSales || 0)}</span></div>
-                                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX START --- */}
                                     <div className="cancellation-summary"><span>ยอดบิลยกเลิก:</span> <span>-฿{formatCurrency((closedShift as any).totalCancellationsValue || 0)}</span></div>
-                                    {/* ULTRAMAX DEVS: "PROJECT CLARITY" FIX END --- */}
                                     <div className="total"><span>เงินสดที่นับได้:</span> <span>฿{formatCurrency(closedShift.closingCashCounted || 0)}</span></div>
                                 </div>
                             </div>

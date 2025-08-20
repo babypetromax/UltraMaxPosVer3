@@ -1,22 +1,36 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useApp } from '../../contexts/AppContext';
-import { useData } from '../../contexts/DataContext';
 import { useConfirmation } from '../../contexts/ConfirmationContext';
-import { useNotification } from '../../contexts/NotificationContext';
+// === ULTRAMAX DEVS EDIT START: Import the new central store ===
+import { useStore } from '../../contexts/store';
+// We no longer need useData here
+// === ULTRAMAX DEVS EDIT END ===
 
 const CategoryColumn: React.FC = () => {
     const { searchQuery, setSearchQuery, setFocusedItem, focusedItem, isAdminMode } = useApp();
-    const { 
-        navCategories, 
-        activeCategory, 
-        setActiveCategory, 
-        handleDeleteCategory, 
-        handleAddCategory, 
-        getCategoryItemRef,
-        shopSettings
-    } = useData();
     const { showConfirmation } = useConfirmation();
-    const { showNotification } = useNotification();
+
+    // === ULTRAMAX DEVS EDIT START: Selectively subscribe to the store ===
+    const {
+        categories,
+        activeCategory,
+        setActiveCategory,
+        handleDeleteCategory,
+        handleAddCategory,
+        shopSettings
+    } = useStore(state => ({
+        categories: state.categories,
+        activeCategory: state.activeCategory,
+        setActiveCategory: state.setActiveCategory,
+        handleDeleteCategory: state.handleDeleteCategory,
+        handleAddCategory: state.handleAddCategory,
+        shopSettings: state.shopSettings,
+    }));
+
+    // Recreate navCategories logic which was previously in DataContext
+    const navCategories = useMemo(() => ['รายการโปรด', ...categories], [categories]);
+    // === ULTRAMAX DEVS EDIT END ===
+
 
     const onAddCategory = () => {
         if (!isAdminMode) return;
@@ -63,7 +77,6 @@ const CategoryColumn: React.FC = () => {
                     const isFocused = shopSettings.isKeyboardNavEnabled && focusedItem?.pane === 'categories' && focusedItem.index === index;
                     return (
                         <li key={cat}
-                            ref={getCategoryItemRef(cat)}
                             className={`category-list-item ${activeCategory === cat && searchQuery.trim() === '' ? 'active' : ''} ${isFocused ? 'keyboard-focused' : ''}`}
                             onClick={() => {
                                 setSearchQuery('');

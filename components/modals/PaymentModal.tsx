@@ -1,22 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../contexts/AppContext';
-import { useCart } from '../../contexts/CartContext';
+// === ULTRAMAX DEVS EDIT START: Import the new central store ===
+import { useStore } from '../../contexts/store';
+// We no longer need useCart
+// === ULTRAMAX DEVS EDIT END ===
 
 const PaymentModal: React.FC = () => {
-    const { setShowPaymentModal } = useApp();
-    const { cartCalculations, handlePlaceOrder } = useCart();
+    // AppContext is still used for controlling UI state (modals)
+    const { setShowPaymentModal, setReceiptData, setShowReceiptModal } = useApp();
+    
+    // === ULTRAMAX DEVS EDIT START: Selectively subscribe to the store ===
+    const { cart, discount, isVatEnabled, handlePlaceOrder } = useStore(state => ({
+        cart: state.cart,
+        discount: state.discount,
+        isVatEnabled: state.isVatEnabled,
+        handlePlaceOrder: state.handlePlaceOrder,
+    }));
+    // === ULTRAMAX DEVS EDIT END ===
 
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qr'>('cash');
     const [cashReceived, setCashReceived] = useState('');
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     
+    // Calculations are now derived from the store's state
+    const cartCalculations = useMemo(() => {
+        const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const discountValue = (discount.endsWith('%')
+            ? subtotal * (parseFloat(discount.slice(0, -1)) / 100)
+            : parseFloat(discount) || 0);
+        const discountedSubtotal = subtotal - discountValue;
+        const tax = isVatEnabled ? discountedSubtotal * 0.07 : 0;
+        const total = discountedSubtotal + tax;
+        return { subtotal, tax, discountValue, total: total < 0 ? 0 : total };
+    }, [cart, discount, isVatEnabled]);
+
     const { total } = cartCalculations;
     const change = parseFloat(cashReceived) - total;
 
     const handleConfirm = async () => {
         setIsPlacingOrder(true);
         try {
-            await handlePlaceOrder(paymentMethod, cashReceived ? parseFloat(cashReceived) : undefined);
+            // === ULTRAMAX DEVS EDIT START: New Order Placement Flow ===
+            // 1. Call handlePlaceOrder from the store. It now returns the new order object.
+            const newOrder = handlePlaceOrder(paymentMethod, cashReceived ? parseFloat(cashReceived) : undefined);
+
+            // 2. If the order was created successfully...
+            if (newOrder) {
+                // 3. Use AppContext to show the receipt modal with the new order data.
+                setShowPaymentModal(false);
+                setReceiptData({ ...newOrder, cashReceived: cashReceived ? parseFloat(cashReceived) : undefined });
+                setShowReceiptModal(true);
+            }
+            // === ULTRAMAX DEVS EDIT END ===
         } finally {
             setIsPlacingOrder(false);
         }

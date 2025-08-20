@@ -1,8 +1,7 @@
-import React, { useContext } from 'react';
-
+import React, { useContext, useEffect } from 'react';
+import { useStore } from './contexts/store';
 import { AppProvider, useApp } from './contexts/AppContext';
-import { CartProvider, useCart } from './contexts/CartContext';
-import { DataProvider, useData } from './contexts/DataContext';
+// We no longer need CartProvider
 import { NotificationProvider, NotificationContext } from './contexts/NotificationContext';
 import { ConfirmationProvider } from './contexts/ConfirmationContext';
 
@@ -29,10 +28,19 @@ const AppContent = () => {
         showEndShiftModal,
         showPaidInOutModal
     } = useApp();
-    const { isInitialLoadComplete, dailyData, shopSettings } = useData();
+    
+    // === ULTRAMAX DEVS FIX: Corrected function name ===
+    const initializeData = useStore(state => state.initializeData);
+    const dailyData = useStore(state => state.dailyData);
+    const shopSettings = useStore(state => state.shopSettings);
+
+    useEffect(() => {
+        initializeData();
+    }, [initializeData]);
+    
     const { notifications, removeNotification } = useContext(NotificationContext)!;
    
-    if (!isInitialLoadComplete || !dailyData) {
+    if (!dailyData) {
         return (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '1rem' }}>
                 <span className="material-symbols-outlined sync-icon pending" style={{ fontSize: '3rem' }}>sync</span>
@@ -61,17 +69,13 @@ const AppContent = () => {
     );
 }
 
-
 const App = () => {
     return (
         <ConfirmationProvider>
             <NotificationProvider>
                 <AppProvider>
-                    <DataProvider>
-                        <CartProvider>
-                            <AppContent />
-                        </CartProvider>
-                    </DataProvider>
+                    {/* CartProvider is no longer needed as its logic is in the store */}
+                    <AppContent />
                 </AppProvider>
             </NotificationProvider>
         </ConfirmationProvider>

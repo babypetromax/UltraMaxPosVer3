@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { ShopSettings } from '../../types';
-import { useData } from '../../contexts/DataContext';
 import { useApp } from '../../contexts/AppContext';
 import { useNotification } from '../../contexts/NotificationContext';
+// === ULTRAMAX DEVS EDIT START: Import the new central store ===
+import { useStore } from '../../contexts/store';
+// === ULTRAMAX DEVS EDIT END ===
 
 const GeneralSettings: React.FC = () => {
-    const { shopSettings, setShopSettings } = useData();
     const { isAdminMode } = useApp();
     const { showNotification } = useNotification();
+
+    // === ULTRAMAX DEVS EDIT START: Selectively subscribe to the store ===
+    const { shopSettings, setShopSettings } = useStore(state => ({
+        shopSettings: state.shopSettings,
+        setShopSettings: state.setShopSettings,
+    }));
+    // === ULTRAMAX DEVS EDIT END ===
+
     const [localSettings, setLocalSettings] = useState(shopSettings);
 
     useEffect(() => {
