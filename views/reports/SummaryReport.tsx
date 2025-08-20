@@ -2,90 +2,59 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Order } from '../../types';
 import { formatCurrency } from '../../helpers';
 import { GoogleGenAI } from '@google/genai';
-import { Bar } from 'react-chartjs-2';
+import { Bar, Pie } from 'react-chartjs-2';
 import { useNotification } from '../../contexts/NotificationContext';
 
-// --- UTILITY FUNCTIONS ---
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 const today = new Date();
-const yesterday = new Date(today);
-yesterday.setDate(today.getDate() - 1);
-const startOfWeek = new Date(today);
-startOfWeek.setDate(today.getDate() - today.getDay());
-const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+const weekAgo = new Date(today);
+weekAgo.setDate(today.getDate() - 7);
 
+interface SummaryReportProps {
+    orders: Order[];
+    ai: GoogleGenAI | null;
+}
 
-// --- SUB-COMPONENTS ---
-const DailySalesTable: React.FC<{ dailyData: { date: string; netSales: number; discount: number; }[] }> = ({ dailyData }) => {
-    if (dailyData.length <= 1) return null; // Don't show table for a single day view
-    return (
-        <div className="report-table-container" style={{ marginTop: '2rem' }}>
-            <table className="report-table">
-                <thead>
-                    <tr>
-                        <th>วันที่</th>
-                        <th>ส่วนลด</th>
-                        <th>ยอดขายสุทธิ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {dailyData.map(row => (
-                        <tr key={row.date}>
-                            <td>{new Date(row.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
-                            <td>฿{formatCurrency(row.discount)}</td>
-                            <td>฿{formatCurrency(row.netSales)}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-};
-
-
-// --- MAIN COMPONENT ---
-const SummaryReport: React.FC<{ orders: Order[]; ai: GoogleGenAI | null; }> = ({ orders, ai }) => {
-    const [dateRange, setDateRange] = useState({ start: formatDate(startOfWeek), end: formatDate(today) });
-    const [activePreset, setActivePreset] = useState('this_week');
+const SummaryReport: React.FC<SummaryReportProps> = ({ orders, ai }) => {
+    const [dateRange, setDateRange] = useState({ start: formatDate(weekAgo), end: formatDate(today) });
+    const [preset, setPreset] = useState('7days');
     const [aiAnalysis, setAiAnalysis] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const { showNotification } = useNotification();
 
-    const handlePresetChange = (preset: string) => {
-        setActivePreset(preset);
-        let start = new Date();
+    const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = e.target.value;
+        setPreset(value);
         const end = new Date();
-        switch (preset) {
-            case 'today':
-                start = today;
-                break;
-            case 'yesterday':
-                start = yesterday;
-                break;
-            case 'this_week':
-                start = startOfWeek;
-                break;
-            case 'this_month':
-                start = startOfMonth;
-                break;
-        }
+        let start = new Date();
+        if (value === 'today') start.setHours(0,0,0,0);
+        else if (value === '7days') start.setDate(end.getDate() - 7);
+        else if (value === '30days') start.setDate(end.getDate() - 30);
         setDateRange({ start: formatDate(start), end: formatDate(end) });
     };
 
     const filteredOrders = useMemo(() => {
+        // === ULTRAMAX DEVS FIX: Stabilize Date objects outside the filter loop ===
         const start = new Date(dateRange.start);
         start.setHours(0, 0, 0, 0);
         const end = new Date(dateRange.end);
         end.setHours(23, 59, 59, 999);
+
+        // Convert to milliseconds once for performance
+        const startTime = start.getTime();
+        const endTime = end.getTime();
+
         return orders.filter(o => {
-            const orderDate = new Date(o.timestamp);
-            return orderDate >= start && orderDate <= end && o.status !== 'cancelled';
+            // Convert order timestamp to milliseconds for direct comparison
+            const orderTime = new Date(o.timestamp).getTime();
+            return orderTime >= startTime && orderTime <= endTime && o.status !== 'cancelled';
         });
     }, [orders, dateRange]);
-
+    
     const reportData = useMemo(() => {
-        let grossSales = 0, totalDiscount = 0, netSales = 0, totalTax = 0, orderCount = 0;
-        const dailySales: { [key: string]: { netSales: number, discount: number } } = {};
+        let grossSales = 0, totalDiscount = 0, netSales = 0, totalTax = 0;
+        let cashSales = 0, qrSales = 0, orderCount = 0;
+        const hourlySales = Array(24).fill(0);
 
         for (const order of filteredOrders) {
             if (order.total > 0) {
@@ -94,105 +63,109 @@ const SummaryReport: React.FC<{ orders: Order[]; ai: GoogleGenAI | null; }> = ({
                 totalDiscount += order.discountValue;
                 netSales += order.total;
                 totalTax += order.tax;
+                if (order.paymentMethod === 'cash') cashSales += order.total;
+                else qrSales += order.total;
 
-                const day = formatDate(new Date(order.timestamp));
-                if (!dailySales[day]) dailySales[day] = { netSales: 0, discount: 0 };
-                dailySales[day].netSales += order.total;
-                dailySales[day].discount += order.discountValue;
+                if (preset === 'today') {
+                   const hour = new Date(order.timestamp).getHours();
+                   hourlySales[hour] += order.total;
+                }
             }
         }
+        return { grossSales, totalDiscount, netSales, totalTax, cashSales, qrSales, orderCount, hourlySales };
+    }, [filteredOrders, preset]);
+
+    const exportToCSV = useCallback(() => {
+        if (filteredOrders.length === 0) {
+            showNotification('ไม่มีข้อมูลให้ส่งออก', 'info');
+            return;
+        }
         
-        const dailyDataArray = Object.entries(dailySales)
-            .map(([date, data]) => ({ date, ...data }))
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-        return { grossSales, totalDiscount, netSales, totalTax, orderCount, dailyData: dailyDataArray };
-    }, [filteredOrders]);
-
-    const chartData = useMemo(() => {
-        const labels = reportData.dailyData.map(d => new Date(d.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }));
-        const data = reportData.dailyData.map(d => d.netSales);
-
-        if (data.length === 0) return { labels: [], datasets: [] };
-
-        const maxSales = Math.max(...data);
-        const minSales = Math.min(...data);
-
-        const backgroundColors = data.map(value => {
-            if (value === maxSales) return '#10b981'; // Green for best day
-            if (value === minSales) return '#f87171'; // Red for worst day
-            return 'rgba(79, 70, 229, 0.8)'; // Default primary color
-        });
-
-        return {
-            labels,
-            datasets: [{
-                label: 'ยอดขายสุทธิ (บาท)',
-                data,
-                backgroundColor: backgroundColors,
-            }]
-        };
-    }, [reportData.dailyData]);
-
+        const headers = ['id', 'timestamp', 'status', 'subtotal', 'discountValue', 'tax', 'total', 'paymentMethod'];
+        const csvRows = [headers.join(',')];
+        for (const order of filteredOrders) {
+            const values = headers.map(header => {
+                const val = order[header as keyof Order];
+                return typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val;
+            });
+            csvRows.push(values.join(','));
+        }
+        
+        const blob = new Blob(["\uFEFF" + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.setAttribute('hidden', '');
+        a.setAttribute('href', url);
+        a.setAttribute('download', `sales_summary_${dateRange.start}_to_${dateRange.end}.csv`);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification('ส่งออกไฟล์ CSV สำเร็จ', 'success');
+    }, [filteredOrders, dateRange, showNotification]);
+    
     const analyzeSalesWithAI = useCallback(async () => {
         setIsAnalyzing(true);
         setAiAnalysis('');
+
         if (!ai) {
-            setAiAnalysis("คุณสมบัติ AI ถูกปิดใช้งานเนื่องจากไม่ได้กำหนดค่า API Key");
+            const message = "คุณสมบัติ AI ถูกปิดใช้งานเนื่องจากไม่ได้กำหนดค่า API Key";
+            setAiAnalysis(message);
             setIsAnalyzing(false);
+            showNotification(message, 'warning');
+            return;
+        }
+        
+        if (filteredOrders.length === 0) {
+             const message = "ไม่มีข้อมูลในช่วงเวลาที่เลือกให้วิเคราะห์";
+            setAiAnalysis(message);
+            setIsAnalyzing(false);
+            showNotification(message, 'info');
             return;
         }
 
         const prompt = `
-            Analyze the following sales data for a Takoyaki shop and provide a concise summary (1-2 sentences) followed by 3 actionable, short bullet-point suggestions to improve sales or operations. Respond in Thai.
-
-            Data:
+            Analyze the following sales data for a Takoyaki shop and provide 3 actionable suggestions to improve sales or operations (respond in Thai in markdown format with bold headers and bullet points):
             - Time Period: ${dateRange.start} to ${dateRange.end}
+            - Gross Sales (before discount): ${reportData.grossSales.toFixed(2)} THB
+            - Total Discounts: ${reportData.totalDiscount.toFixed(2)} THB
             - Net Sales: ${reportData.netSales.toFixed(2)} THB
             - Total Bills: ${reportData.orderCount}
-            - Daily Sales Data: ${JSON.stringify(reportData.dailyData)}
-            
-            Example Format:
-            ยอดขายในช่วงนี้ดูดีมาก โดยเฉพาะวันเสาร์ที่เป็นวันทำเงินหลัก
-            - ลองจัดโปรโมชันลดราคาสำหรับวันอังคารซึ่งเป็นวันที่ยอดขายน้อยที่สุด
-            - เพิ่มเมนูเครื่องดื่มใหม่เพื่อเพิ่มยอดขายต่อบิล
-            - โปรโมทชุดคอมโบ้สำหรับช่วงเวลา 14:00-16:00 ที่เป็นช่วงขายดี
+            - Cash Sales: ${reportData.cashSales.toFixed(2)} THB
+            - QR Code Sales: ${reportData.qrSales.toFixed(2)} THB
         `;
         try {
-            const result = await ai.getGenerativeModel({ model: "gemini-pro" }).generateContent(prompt);
-            setAiAnalysis(result.response.text());
+            const model = ai.getGenerativeModel({ model: "gemini-pro"});
+            const result = await model.generateContent(prompt);
+            const response = result.response;
+            const text = response.text();
+            setAiAnalysis(text);
         } catch (error) {
+            console.error("AI Analysis Error:", error);
             const errorMessage = "ขออภัย, เกิดข้อผิดพลาดในการวิเคราะห์ข้อมูล";
             setAiAnalysis(errorMessage);
             showNotification(errorMessage, 'error');
         } finally {
             setIsAnalyzing(false);
         }
-    }, [reportData, dateRange, ai, showNotification]);
+    }, [reportData, dateRange, ai, showNotification, filteredOrders]);
 
-    const chartOptions = { responsive: true, plugins: { legend: { display: false } } };
-    const presets = [
-        { key: 'today', label: 'วันนี้' },
-        { key: 'yesterday', label: 'เมื่อวาน' },
-        { key: 'this_week', label: 'สัปดาห์นี้' },
-        { key: 'this_month', label: 'เดือนนี้' },
-    ];
+
+    const chartOptions = { responsive: true, plugins: { legend: { position: 'top' as const } } };
 
     return (
         <div>
-            <div className="report-header" style={{ alignItems: 'flex-start' }}>
+            <div className="report-header">
                 <h1>สรุปยอดขาย</h1>
-                <div className="report-controls" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-end' }}>
-                    <div className="preset-buttons" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        {presets.map(p => (
-                            <button key={p.key} className={`action-button ${activePreset === p.key ? '' : 'secondary'}`} onClick={() => handlePresetChange(p.key)}>{p.label}</button>
-                        ))}
-                    </div>
-                    <div className="date-range-selector" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                         <input type="date" value={dateRange.start} onChange={e => { setDateRange(p => ({...p, start: e.target.value})); setActivePreset(''); }} />
-                         <span>ถึง</span>
-                         <input type="date" value={dateRange.end} onChange={e => { setDateRange(p => ({...p, end: e.target.value})); setActivePreset(''); }} />
-                    </div>
+                <div className="report-controls">
+                    <select value={preset} onChange={handlePresetChange}>
+                        <option value="today">วันนี้</option>
+                        <option value="7days">7 วันล่าสุด</option>
+                        <option value="30days">30 วันล่าสุด</option>
+                    </select>
+                    <div className="control-group"><label>เริ่มต้น</label><input type="date" value={dateRange.start} onChange={e => setDateRange(p => ({...p, start: e.target.value}))} /></div>
+                    <div className="control-group"><label>สิ้นสุด</label><input type="date" value={dateRange.end} onChange={e => setDateRange(p => ({...p, end: e.target.value}))} /></div>
+                     <button className="action-button" onClick={exportToCSV}><span className="material-symbols-outlined">download</span>ส่งออก CSV</button>
                 </div>
             </div>
 
@@ -201,26 +174,3 @@ const SummaryReport: React.FC<{ orders: Order[]; ai: GoogleGenAI | null; }> = ({
                 <div className="summary-card"><div className="summary-card-title">จำนวนบิล</div><div className="summary-card-value">{reportData.orderCount}</div></div>
                 <div className="summary-card"><div className="summary-card-title">ส่วนลด</div><div className="summary-card-value">฿{formatCurrency(reportData.totalDiscount)}</div></div>
                 <div className="summary-card"><div className="summary-card-title">ภาษี</div><div className="summary-card-value">฿{formatCurrency(reportData.totalTax)}</div></div>
-            </div>
-             
-            <div className="chart-container">
-                <h3>ภาพรวมยอดขายรายวัน</h3>
-                {reportData.dailyData.length > 0 ? (
-                    <Bar options={chartOptions} data={chartData} />
-                ) : <p style={{ textAlign: 'center', padding: '2rem' }}>ไม่มีข้อมูลการขายในช่วงเวลาที่เลือก</p>}
-            </div>
-
-            <DailySalesTable dailyData={reportData.dailyData} />
-            
-            <div className="ai-analysis-section">
-               <div className="ai-analysis-header"><span className="material-symbols-outlined">psychology</span>AI วิเคราะห์ยอดขาย</div>
-               <p className="text-secondary" style={{ margin: '0.5rem 0 1rem 0' }}>ให้ AI ช่วยสรุปและหาโอกาสในการเพิ่มยอดขายจากข้อมูลของคุณ</p>
-               <button className="action-button" onClick={analyzeSalesWithAI} disabled={isAnalyzing || filteredOrders.length === 0}>{isAnalyzing ? 'กำลังวิเคราะห์...' : 'เริ่มการวิเคราะห์'}</button>
-               {aiAnalysis && <div className="ai-analysis-content" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{aiAnalysis}</div>}
-            </div>
-
-        </div>
-    );
-};
-
-export default SummaryReport;
